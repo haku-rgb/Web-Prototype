@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記事</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+<style>
+  :root {
+    --text: #1a1a1a;
+    --muted: #777;
+    --border: #ccc;
+    --heading-bg: #f3f3f3;
+    --link: #4682b4;
+    --link-hover: #b22222;
+    --max-width: 760px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: #fafafa;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+      "Hiragino Kaku Gothic ProN", "メイリオ", meiryo, sans-serif;
+    line-height: 1.75;
+  }
+  main {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    background: #fff;
+    padding: 24px 16px 60px;
+  }
+  @media (min-width: 600px) {
+    main { padding: 40px 32px 80px; }
+  }
+
+  #article-header { margin-bottom: 24px; }
+  #article-title {
+    font-size: 24px;
+    line-height: 1.4;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: #333;
+  }
+  @media (min-width: 600px) {
+    #article-title { font-size: 30px; }
+  }
+  #article-date {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 16px;
+  }
+  #article-image {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+  }
+
+  #article-body h2 {
+    font-size: 20px;
+    background: var(--heading-bg);
+    color: #1a1a1a;
+    margin: 32px 0 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  #article-body h3 {
+    font-size: 18px;
+    background: var(--heading-bg);
+    color: #1a1a1a;
+    margin: 28px 0 14px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  #article-body p { margin: 0 0 20px; }
+  #article-body a { color: var(--link); text-decoration: none; }
+  #article-body a:hover { color: var(--link-hover); text-decoration: underline; }
+  #article-body strong { font-weight: 700; }
+  #article-body ul, #article-body ol { padding-left: 1.4em; margin: 0 0 20px; }
+  #article-body li { margin-bottom: 6px; }
+  #article-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 24px;
+  }
+  #article-body th, #article-body td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+  }
+  #article-body th { background: var(--heading-bg); }
+  #article-body img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 16px 0;
+  }
+  #article-body blockquote {
+    margin: 0 0 20px;
+    padding: 12px 16px;
+    border-left: 4px solid var(--border);
+    background: #fafafa;
+    color: #555;
+  }
+
+  #loading, #error {
+    padding: 40px 0;
+    text-align: center;
+    color: var(--muted);
+  }
+  #error { display: none; color: #b22222; }
+</style>
+</head>
+<body>
+<main>
+  <div id="loading">読み込み中…</div>
+  <div id="error">article.md の読み込みに失敗しました。ローカルサーバー経由（例: <code>python -m http.server</code>）で開いているか確認してください。</div>
+
+  <div id="article-header" style="display:none">
+    <h1 id="article-title"></h1>
+    <p id="article-date"></p>
+    <img id="article-image" style="display:none">
+  </div>
+  <article id="article-body"></article>
+</main>
+
+<script>
+  // 簡易フロントマター（--- ... ---）パーサー
+  function parseFrontMatter(raw) {
+    const match = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+    if (!match) return { meta: {}, body: raw };
+    const meta = {};
+    match[1].split("\n").forEach(line => {
+      const idx = line.indexOf(":");
+      if (idx === -1) return;
+      const key = line.slice(0, idx).trim();
+      const value = line.slice(idx + 1).trim();
+      meta[key] = value;
+    });
+    return { meta, body: match[2] };
+  }
+
+  fetch("article.md")
+    .then(res => {
+      if (!res.ok) throw new Error("fetch failed");
+      return res.text();
+    })
+    .then(raw => {
+      const { meta, body } = parseFrontMatter(raw);
+
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("article-header").style.display = "block";
+
+      if (meta.title) {
+        document.title = meta.title;
+        document.getElementById("article-title").textContent = meta.title;
+      }
+      if (meta.updated) {
+        document.getElementById("article-date").textContent = "更新日：" + meta.updated;
+      }
+      if (meta.image) {
+        const img = document.getElementById("article-image");
+        img.src = meta.image;
+        img.alt = meta.title || "";
+        img.style.display = "block";
+      }
+
+      document.getElementById("article-body").innerHTML = marked.parse(body);
+    })
+    .catch(err => {
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("error").style.display = "block";
+      console.error(err);
+    });
+</script>
+</body>
+</html>
